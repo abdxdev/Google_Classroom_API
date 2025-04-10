@@ -20,13 +20,14 @@ def get_new_item(service, course, item_type, last_check):
 
     for item in items.get(item_type, []):
         if parse_datetime(item["updateTime"]) > last_check:
-            print(f"New item found:")
-            print(item)
             try:
+                json_data = {"course": course, "activity": item, "type": item_type, "is_new": (parse_datetime(item["creationTime"]) - parse_datetime(item["updateTime"])).total_seconds() < 300}
+                print(f"New item found:")
+                print(json_data)
                 response = requests.post(
                     appSettings.webhook_url,
                     headers={"Content-Type": "application/json"},
-                    json={"course": course, "activity": item, "type": item_type, "is_new": (parse_datetime(item["creationTime"]) - parse_datetime(item["updateTime"])).total_seconds() < 300},
+                    json=json_data,
                 )
             except:
                 response = requests.post(
@@ -41,7 +42,11 @@ def get_new_item(service, course, item_type, last_check):
 
 def notify_new_activity(service):
     print("Last check:", appSettings.last_check)
-    last_check = datetime.fromisoformat(appSettings.last_check).replace(tzinfo=timezone.utc) if appSettings.last_check is not None else datetime.now(timezone.utc)
+    try:
+        last_check = datetime.fromisoformat(appSettings.last_check).replace(tzinfo=timezone.utc) if appSettings.last_check is not None else datetime.now(timezone.utc)
+    except:
+        appSettings.update("last_check", datetime.now(timezone.utc).isoformat())
+        last_check = datetime.fromisoformat(appSettings.last_check).replace(tzinfo=timezone.utc)
 
     courses = service.courses().list().execute().get("courses", [])
     for course in courses:
